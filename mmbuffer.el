@@ -280,9 +280,9 @@
 	   (body-start (mime-buffer-entity-body-start-internal entity))
 	   (body-end (mime-buffer-entity-body-end-internal entity)))
       (save-restriction
-	(goto-char body-end)
+	(goto-char body-start)
 	(narrow-to-region body-start
-			  (if (re-search-backward close-delimiter nil t)
+			  (if (re-search-forward close-delimiter nil t)
 			      (match-beginning 0)
 			    body-end))
 	(goto-char body-start)
