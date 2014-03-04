@@ -29,6 +29,7 @@
 (require 'custom)
 (require 'mcharset)
 (require 'alist)
+(require 'static)
 
 (eval-when-compile (require 'luna))	; luna-arglist-to-arguments
 
@@ -142,8 +143,14 @@ If method is nil, this field will not be encoded."
 (defconst mime-token-regexp
   (concat "[^" mime-tspecial-char-list "\000-\040]+"))
 (defconst mime-attribute-char-regexp
-  (concat "[^" mime-tspecial-char-list "\000-\040"
+  (concat "[^" mime-tspecial-char-list
 	  "*'%"				; introduced in RFC 2231.
+	  "\000-\040"
+	  "]"))
+(defconst mime-non-attribute-char-regexp
+  (concat "[" mime-tspecial-char-list
+	  "*'%"				; introduced in RFC 2231.
+	  "\000-\040\177-\377"		; non-printable, non-US-ASCII.
 	  "]"))
 
 (defconst mime-charset-regexp
@@ -151,7 +158,8 @@ If method is nil, this field will not be encoded."
 	  "*'%"				; should not include "%"?
 	  "]+"))
 
-;; More precisely, length of "[A-Za-z]+" is limited to at most 8.
+;; More precisely, length of each "[A-Za-z]+" is limited to at most 8.
+;; See RFC 3066 "Tags for the Identification of Languages".
 ;; (defconst mime-language-regexp "[A-Za-z]+\\(-[A-Za-z]+\\)*")
 (defconst mime-language-regexp "[-A-Za-z]+")
 
@@ -393,6 +401,29 @@ variable and (nth 1 (car (last ARGS))) is name of backend (encoding)."
 	       path)
 	  ))))
 
+(static-cond
+ ((eval-when-compile (and (featurep 'mule)
+			  (>= emacs-major-version 20)
+			  (null (featurep 'xemacs))))
+  (defsubst mime-charset-decode-string (string charset &optional lbt)
+    "Decode the STRING as MIME CHARSET.
+Buffer's multibyteness is ignored."
+    (let ((cs (mime-charset-to-coding-system charset lbt)))
+      (if cs
+	  (decode-coding-string string cs)
+	string)))
+
+  (defsubst mime-charset-encode-string (string charset &optional lbt)
+    "Encode the STRING as MIME CHARSET.
+Buffer's multibyteness is ignored."
+    (let ((cs (mime-charset-to-coding-system charset lbt)))
+      (if cs
+	  (encode-coding-string string cs)
+	string))))
+ (t
+  (defalias 'mime-charset-decode-string 'decode-mime-charset-string)
+  (defalias 'mime-charset-encode-string 'encode-mime-charset-string))
+ )
 
 ;;; @ end
 ;;;

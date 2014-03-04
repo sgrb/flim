@@ -74,6 +74,8 @@
 	Dcc))
     (eword-encode-in-reply-to . (In-Reply-To))
     (eword-encode-structured-field-body . (Mime-Version User-Agent))
+    (eword-encode-Content-Disposition-field-body . (Content-Disposition))
+    (eword-encode-Content-Type-field-body . (Content-Type))
     (eword-encode-unstructured-field-body)))
 
 ;;; @ encoded-text encoder
@@ -95,6 +97,8 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 ;;; @ charset word
 ;;;
 
+(unless (and (null (string< mule-version "6.0"))
+	     (fboundp 'detect-mime-charset-string))
 (defsubst eword-encode-char-type (character)
   (if (memq character '(?  ?\t ?\n))
       nil
@@ -122,11 +126,14 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	      string (substring string i)
 	      len (- len i))))
     (nreverse dest)))
+)
 
 
 ;;; @ word
 ;;;
 
+(unless (and (null (string< mule-version "6.0"))
+	     (fboundp 'detect-mime-charset-string))
 (defun eword-encode-charset-words-to-words (charset-words)
   (let (dest)
     (while charset-words
@@ -156,6 +163,7 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 		))))
     (nreverse dest)
     ))
+)
 
 
 ;;; @ rule
@@ -172,6 +180,8 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 (defmacro ew-rword-type (rword)
   `(car (cdr (cdr (cdr ,rword)))))
 
+(unless (and (null (string< mule-version "6.0"))
+	     (fboundp 'detect-mime-charset-string))
 (defun ew-find-charset-rule (charsets)
   (if charsets
       (let* ((charset (find-mime-charset-by-charsets charsets))
@@ -179,11 +189,26 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	      (cdr (or (assq charset mime-header-charset-encoding-alist)
 		       (cons charset mime-header-default-charset-encoding)))))
 	(list charset encoding))))
+)
+
+(if (and (null (string< mule-version "6.0"))
+	 (fboundp 'detect-mime-charset-string))
+;;for Emacs23 and later
+(defun ew-find-string-rule (string)
+  (let ((charset (detect-mime-charset-string string)))
+    (list charset
+	  (cdr (or (assq charset mime-header-charset-encoding-alist)
+		   (cons nil mime-header-default-charset-encoding))))))
+
+;; for other platforms
+(defun ew-find-string-rule (string)
+  (ew-find-charset-rule (find-charset-string string)))
+)
 
 ;; [tomo:2002-11-05] The following code is a quick-fix for emacsen
 ;; which is not depended on the Mule model.  We should redesign
 ;; `eword-encode-split-string' to avoid to depend on the Mule model.
-(if (featurep 'utf-2000)
+(cond ((featurep 'utf-2000)
 ;; for CHISE Architecture
 (defun tm-eword::words-to-ruled-words (wl &optional mode)
   (let (mcs)
@@ -198,7 +223,14 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 		mode)
 	       ))
 	    wl)))
+)
 
+((and (null (string< mule-version "6.0"))
+      (fboundp 'detect-mime-charset-string))
+;; for Emacs23 and later
+)
+
+(t
 ;; for legacy Mule
 (defun tm-eword::words-to-ruled-words (wl &optional mode)
   (mapcar (function
@@ -207,6 +239,45 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	       (make-ew-rword (cdr word) (car ret)(nth 1 ret) mode)
 	       )))
 	  wl))
+))
+
+(if (and (null (string< mule-version "6.0"))
+	 (fboundp 'detect-mime-charset-string))
+;; for Emacs23 and later
+(defun tm-eword::string-to-ruled-words (string &optional mode)
+  (let ((len (length string))
+	(beg 0)
+	(i 1)
+	spacep dest mcs)
+    (when (> len 0)
+      (mapcar
+       (lambda (elt)
+	 (if (cdr elt)
+	     (make-ew-rword (car elt) nil nil mode)
+	   (setq mcs (detect-mime-charset-string (car elt)))
+	   (make-ew-rword
+	    (car elt)
+	    mcs
+	    (cdr (or (assq mcs mime-header-charset-encoding-alist)
+		     (cons nil mime-header-default-charset-encoding)))
+	    mode)))
+       (progn
+	 (setq spacep (memq (aref string 0) '(?  ?\t ?\n)))
+	 (while (< i len)
+	   (unless (eq spacep (memq (aref string i) '(?  ?\t ?\n)))
+	     (setq dest (cons (cons (substring string beg i) spacep) dest))
+	     (setq beg i)
+	     (setq spacep (null spacep)))
+	   (setq i (1+ i)))
+	 (nreverse
+	  (cons (cons (substring string beg len) spacep) dest)))))))
+
+;; for other platforms
+(defun tm-eword::string-to-ruled-words (string &optional mode)
+  (tm-eword::words-to-ruled-words
+   (eword-encode-charset-words-to-words
+    (eword-encode-divide-into-charset-words string))
+   mode))
 )
 
 (defun ew-space-process (seq)
@@ -246,11 +317,7 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
     ))
 
 (defun eword-encode-split-string (str &optional mode)
-  (ew-space-process
-   (tm-eword::words-to-ruled-words
-    (eword-encode-charset-words-to-words
-     (eword-encode-divide-into-charset-words str))
-    mode)))
+  (ew-space-process (tm-eword::string-to-ruled-words str mode)))
 
 
 ;;; @ length
@@ -263,11 +330,11 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	ret)
     (setq ret
 	  (cond ((string-equal encoding "B")
-		 (setq string (encode-mime-charset-string string charset))
+		 (setq string (mime-charset-encode-string string charset))
 		 (base64-encoded-length string)
 		 )
 		((string-equal encoding "Q")
-		 (setq string (encode-mime-charset-string string charset))
+		 (setq string (mime-charset-encode-string string charset))
 		 (Q-encoded-text-length string (ew-rword-type rword))
 		 )))
     (if ret
@@ -410,8 +477,7 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	     (setq dest
 		   (append dest
 			   (list
-			    (let ((ret (ew-find-charset-rule
-					(find-charset-string str))))
+			    (let ((ret (ew-find-string-rule str)))
 			      (make-ew-rword
 			       str (car ret)(nth 1 ret) 'phrase)
 			      )
@@ -421,22 +487,16 @@ MODE is allows `text', `comment', `phrase' or nil.  Default value is
 	     (setq dest
 		   (append dest
 			   '(("(" nil nil special))
-			   (tm-eword::words-to-ruled-words
-			    (eword-encode-charset-words-to-words
-			     (eword-encode-divide-into-charset-words
-			      (cdr token)))
-			    'comment)
+			   (tm-eword::string-to-ruled-words
+			    (cdr token) 'comment)
 			   '((")" nil nil special))
 			   ))
 	     )
 	    (t
 	     (setq dest
 		   (append dest
-			   (tm-eword::words-to-ruled-words
-			    (eword-encode-charset-words-to-words
-			     (eword-encode-divide-into-charset-words
-			      (cdr token))
-			     ) 'phrase)))
+			   (tm-eword::string-to-ruled-words
+			    (cdr token) 'phrase)))
 	     ))
       (setq phrase (cdr phrase))
       )
@@ -629,6 +689,84 @@ Optional argument COLUMN is start-position of the field."
   (car (eword-encode-rword-list
 	(or column eword-encode-default-start-column)
 	(eword-encode-split-string string 'text))))
+
+(defun eword-encode-Content-Type-field-body (field-body &optional column)
+  "Encode FIELD-BODY with MIME Parameter-Value Extensions, if necessary.
+Optional second arg COLUMN is ignored."
+  (let ((tokens (mime-lexical-analyze field-body))
+	primary-type)
+    (unless (eq (car (car tokens)) 'mime-token)
+      (error "Invalid Content-Type value: %s" field-body))
+    (setq primary-type (downcase (cdr (car tokens)))
+	  tokens (cdr tokens))
+    (unless (and (eq (car (car tokens)) 'tspecials)
+		 (string= (cdr (car tokens)) "/")
+		 (setq tokens (cdr tokens))
+		 (eq (car (car tokens)) 'mime-token))
+      (error "Invalid Content-Type value: %s" field-body))
+    (concat " " primary-type "/" (downcase (cdr (car tokens)))
+            (mapconcat
+             (function
+              (lambda (param)
+                (concat ";\n " (car param) "=" (cdr param))))
+             (mime-encode-parameters
+	      (mime-parse-parameters (cdr tokens)))
+             ""))))
+
+(defun eword-encode-Content-Disposition-field-body (field-body &optional column)
+  "Encode FIELD-BODY with MIME Parameter-Value Extensions, if necessary.
+Optional second arg COLUMN is ignored."
+  (let ((tokens (mime-lexical-analyze field-body)))
+    (unless (eq (car (car tokens)) 'mime-token)
+      (error "Invalid Content-Disposition value: %s" field-body))
+    (concat " " (cdr (car tokens))
+            (mapconcat
+             (function
+              (lambda (param)
+                (concat ";\n " (car param) "=" (cdr param))))
+             (mime-encode-parameters
+	      (mime-parse-parameters (cdr tokens)))
+             ""))))
+
+(defun eword-encode-Content-Type-field-body-broken-mime
+  (field-body &optional column)
+  "Encode FIELD-BODY compatibly with Outlook, if necessary.
+Optional second arg COLUMN is ignored."
+  (let ((tokens (mime-lexical-analyze field-body))
+	primary-type)
+    (unless (eq (car (car tokens)) 'mime-token)
+      (error "Invalid Content-Type value: %s" field-body))
+    (setq primary-type (downcase (cdr (car tokens)))
+	  tokens (cdr tokens))
+    (unless (and (eq (car (car tokens)) 'tspecials)
+		 (string= (cdr (car tokens)) "/")
+		 (setq tokens (cdr tokens))
+		 (eq (car (car tokens)) 'mime-token))
+      (error "Invalid Content-Type value: %s" field-body))
+    (concat " " primary-type "/" (downcase (cdr (car tokens)))
+            (mapconcat
+             (function
+              (lambda (param)
+                (concat ";\n " (car param) "=\"" (cdr param) "\"")))
+             (mime-encode-parameters-broken-mime
+	      (mime-parse-parameters (cdr tokens)))
+             ""))))
+
+(defun eword-encode-Content-Disposition-field-body-broken-mime
+  (field-body &optional column)
+  "Encode FIELD-BODY compatibly with Outlook, if necessary.
+Optional second arg COLUMN is ignored."
+  (let ((tokens (mime-lexical-analyze field-body)))
+    (unless (eq (car (car tokens)) 'mime-token)
+      (error "Invalid Content-Disposition value: %s" field-body))
+    (concat " " (cdr (car tokens))
+            (mapconcat
+             (function
+              (lambda (param)
+                (concat ";\n " (car param) "=\"" (cdr param) "\"")))
+             (mime-encode-parameters-broken-mime
+	      (mime-parse-parameters (cdr tokens)))
+             ""))))
 
 ;;;###autoload
 (defun mime-encode-field-body (field-body field-name)
