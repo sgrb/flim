@@ -270,7 +270,7 @@
 	    (concat "--"
 		    (mime-content-type-parameter content-type "boundary")))
 	   (delimiter       (concat "\n" (regexp-quote dash-boundary)))
-	   (close-delimiter (concat delimiter "--[ \t]*$"))
+	   (close-delimiter (concat delimiter "--[ \t\r]*$"))
 	   (rsep (concat delimiter "[ \t]*\n"))
 	   (dc-ctl
 	    (if (eq (mime-content-type-subtype content-type) 'digest)
