@@ -1,156 +1,247 @@
-[FLIM の README (日本語版)]
+[README for SEMI kernel package (日本語版)]
 
-FLIM とは？
-===========
+SEMI とは?
+=========
 
-  FLIM は Internet message に関する様々な表現形式や符号化に関する基礎
-  的な機能を提供するための汎用部品です。FLIM は以下のモジュールから構
-  成されています:
+ SEMI は GNU Emacs に対して MIME 機能を提供するライブラリです。MIME は、
+ メッセージ内にプレーンテキスト (ASCII) 以外の内容やヘッダを含むものに
+ 関して提案されたインターネット規格です。
 
-    std11.el	--- STD 11 (RFC 822) 形式に基づく解析処理等
+        RFC 2045 : Internet Message Bodies
+        RFC 2046 : Media Types
+        RFC 2047 : Message Header Extensions
+        RFC 2048 : MIME Registration Procedures
+        RFC 2049 : MIME Conformance
 
-    mime.el	--- MIME-entity に関する諸機能の提供
+ SEMI は、以下の機能を持っています:
 
-      mime-def.el --- MIME 形式に関する定義
+        - MIME message viewer   (mime-view-mode) (RFC 2045 .. 2049)
+        - MIME message composer (mime-edit-mode) (RFC 2045 .. 2049)
 
-      mime-parse.el --- MIME 解析器
+ MIME message viewer と MIME message compiser はさらに次の特徴を持って
+ います:
 
-      mel.el --- MIME 符号器/復号器
-	mel-b-dl.el --- base64 (B-encoding) 符号器/復号器
-			(dynamic loading 機能付き Emacs 20 用)
-	mel-b-ccl.el --- base64 (B-encoding) encoder/decoder (using CCL)
-	mel-b-el.el --- base64 (B-encoding) 符号器/復号器
-			(他の emacsen 用)
-	mel-q-ccl.el --- quoted-printable and Q-encoding
-			 encoder/decoder (using CCL)
-	mel-q.el    --- quoted-printable と Q-encoding
-		    	符号器/復号器
-	mel-u.el    --- uuencode のための非公式 backend
-	mel-g.el    --- gzip64 のための非公式 backend
+        - filename handling by Content-Disposition field (RFC 1806)
+        - PGP/MIME security Multiparts (RFC 2015)
+        - application/pgp (draft-kazu-pgp-mime-00.txt; obsolete)
+        - text/richtext (RFC 1521; obsolete; preview only)
+        - text/enriched (RFC 1896)
+        - External method configuration by mailcap (RFC 1524)
 
-      eword-decode.el --- encoded-word 復号器
-      eword-encode.el --- encoded-word 符号器
-
-  以下の環境で動作します：
-
-	Emacs 20.4 以降
-	XEmacs 21.1 以降
+ このパッケージには MUAs に関する MIME 拡張は含まれていないことに注意
+ してください。これらは、別のパッケージとして配布されています。
 
 
-導入 (Installation)
-===================
+必要な環境
+==========
 
-(0) 導入 (install) する前に、APEL (10.7 以降) を導入してください。APEL
-    は以下のところで取得できます:
+ SEMI は、XEmacs 21.1 以降、および GNU Emacs 20.4 以降に対応しています。
 
-	ftp://ftp.m17n.org/pub/mule/apel/
+ SEMI は、GNU Emacs 19.28 または XEmacs 19.14 よりも古いものについては、
+ 一切対応していません。加えて、SEMI は Mule 1, Mule 2 および GNU Emacs
+ 20.1/20.2 などで実装されている byte-indexing では動作しません。
 
-(1-a) 展開した場所への導入
+ SEMI は、Emacs 19.29 から 19.34, XEmacs 19.15 または XEmacs 20.2 につ
+ いても対応はしていませんが、動くかもしれません。
 
-  展開した場所とは異なる場所に導入したくないなら、
+ SEMI は、APEL (10.7 以降) と FLIM (1.14.2 以降) を必要とします。 SEMI
+ をインストールする前に、これらをインストールしてください。APEL は、以
+ 下で入手可能です。:
 
-	% make
+	http://git.chise.org/elisp/dist/apel/
 
-  だけを実行してください。
+ そして、FLIM は以下で入手可能です。:
 
-  emacs のコマンド名を指定することができます。例えば、
+	http://git.chise.org/elisp/dist/flim/flim-1.14/
 
-	% make EMACS=xemacs
 
-  `EMACS=...' が省略されると、Emacs=emacs が使われます。
+インストール
+============
+
+(a) 展開した場所で実行する
+
+ もし、他のディレクトリにインストールすることを望まないならば、以下の
+ みを実行してください。:
+
+        % make
+
+ あなたは emacs コマンド名を指定することが可能です。例えば、
+
+        % make EMACS=xemacs
+
+ もし、`EMACS=...' が省略されると、EMACS=emacs が用いられます。
 
 (b) make install
 
-  展開した場所とは異なる場所に導入したいなら、
+ もしあなたが、他のディレクトリにインストールすることを望むならば、以下
+ を実行してください。:
 
-	% make install
+        % make install
 
-  を実行してください。
+ あなたは emacs コマンド名を指定することが可能です。例えば、
 
-  emacs のコマンド名を指定することができます。例えば、
+        % make install EMACS=xemacs
 
-	% make install EMACS=xemacs
+ もし、`EMACS=...' が省略されると、EMACS=emacs が用いられます。
 
-  `EMACS=...' が省略されると、Emacs=emacs が使われます。
+ あなたは、Emacs Lisp プログラムとシェルスクリプトに関するディレクトリ階
+ 層の接頭語を指定することができます。たとえば、:
 
-  Emacs Lisp プログラムのためのディレクトリー木の接頭辞 (prefix) を指
-  定することができます。例えば、
+        % make install PREFIX=~/
 
-	% make install PREFIX=~/
+ もし、`PREFIX=...' が省略されると、指定した emacs コマンドのディレク
+ トリ階層の接頭語が使用されます。(たぶん、/usr/local)
 
-  `PREFIX=...' が省略されると、指定された emacs コマンドのディレクトリー
-  木の接頭辞が使用されます (おそらく /usr/local です)。
+ 例えば、もし、PREFIX=/usr/local および、EMACS 19.34 が指定されると、
+ 以下のようなディレクトリ階層が作成されるでしょう。:
 
-  例えば、PREFIX=/usr/local と Emacs 20.7 が指定されれば、以下のディレ
-  クトリー木が作成されます。
+        /usr/local/share/emacs/19.34/site-lisp/  --- emu
+        /usr/local/share/emacs/site-lisp/apel/   --- APEL
+        /usr/local/share/emacs/site-lisp/flim/   --- FLIM
+        /usr/local/share/emacs/site-lisp/semi/   --- SEMI
 
-	/usr/local/share/emacs/site-lisp/flim/	--- FLIM
-	/usr/local/share/emacs/20.7/site-lisp/flim/	--- FLIM
+ あなたは、site-lisp のディレクトリを指定することができます。例えば、
 
-  Emacs Lisp プログラムのための lisp ディレクトリーを指定することがで
-  きます。例えば、:
+        % make install LISPDIR=~/share/emacs/lisp
 
-    % make install LISPDIR=~/share/emacs/elisp
+ もし、`LISPDIR=...' が省略されると、指定した emacs コマンドの
+ site-lisp ディレクトリが使用されます(たぶん、
+ /usr/local/share/emacs/site-lisp または
+ /usr/local/lib/xemacs/site-lisp)。
 
-  `LISPDIR=...' が省略されると、指定された emacs のコマンドの
-  site-lisp ディレクトリーが使われます (おそらく
-  /usr/local/share/emacs/site-lisp か /usr/local/lib/xemacs/site-lisp)
-  です。
+ もし、emu モジュール (APEL に含まれている)が一般的ではないディレクト
+ リにインストールされている場合には、あなたは、これらがどこで見付けら
+ れるか指定する必要があります。:
 
-  emu モジュール (APEL パッケージに入っています) が標準でないディレク
-  トリーに導入されている場合は、それらのある場所を指定する必要
-  があります。例えば：
+        % make install VERSION_SPECIFIC_LISPDIR=~/elisp
 
-    % make install VERSION_SPECIFIC_LISPDIR=~/elisp
+(c) XEmacs package としてのインストール
 
-  どのファイルが emu モジュールか APEL モジュールの一部なのか、それら
-  がどこに導入されるかを知りたいときは、次のようなコマンドを入
-  力することができます。
+ もしあなたが、XEmacs package のディレクトリにインストールすることを望
+ むならば、以下を実行してください。:
 
-    % make what-where LISPDIR=~/elisp VERSION_SPECIFIC_LISPDIR=~/elisp
+        % make install-package
 
-  また、FLIM-CFG ファイルを編集することで他の選択可能な設定を指定する
-  ことができます。その詳細に関しては FLIM-CFG ファイルの注釈 (comment) 
-  を読んでください。
+ あなたは、emacs command の名前を指定することができます。たとえば、:
 
-(1-c) XEmacs のパッケージとして導入する
+        % make install-package XEMACS=xemacs-21
 
-  XEmacs のパッケージ・ディレクトリーに導入する場合は、
+ もし、`XEMACS=...' が省略されると、XEMACS=xemacs が用いられます。
 
-	% make install-package
+ あなたは、package のディレクトリを指定することができます。たとえば、:
 
-  を実行してください。
+        % make install PACKAGEDIR=~/.xemacs
 
-  XEmacs のコマンド名を指定することができます。例：
+ もし、`PACKAGEDIR=...' が省略されると、最初に存在する package のディ
+ レクトリが使用されます。
 
-	% make install-package XEMACS=xemacs-21
+ XEmacs package システムは、XEmacs 21.0 以降を必要とすることに注意してく
+ ださい。
 
-  `XEMACS=...' が省略されると、XEMACS=xemacs が使用されます。
+(a,b,c)
 
-  パッケージ・ディレクトリーを指定することができます。例：
-
-	% make install PACKAGEDIR=~/.xemacs
-
-  `PACKAGEDIR=...' が省略されると、存在するパッケージ・ディレクトリー
-  の最初のものが使われます。
-
-  ［注意］XEmacs のパッケージ・システムは XEmacs 21.0 かそれ以降が必要
-	  です。
+ あなたは、${archive}/SEMI-CFG というファイルを書き換えることにより、
+ 他のオプションの設定を指定することができます。${archive}/README.en と
+ ${archive}/SEMI-CFG のコメントを読んでください。
 
 
-バグ報告
+初期化
+======
+
+(a) load-path
+
+ あなたが XEmacs 21.1 以降あるいは GNU Emacs 20.4 以降を使用しているな
+ ら、load-path に関して必要な設定はありません。
+
+(b) mime-setup
+
+ あなたの ~/.emacs に以下の記述を追加してください。:
+
+        (load "mime-setup")
+
+
+付属資料
 ========
 
-  バグ報告や改善の提案を書いたときは、是非 EMACS-MIME メーリングリスト
-  に送ってください:
+ SEMI を使い始めるために、${archive}/README.en を読んでください。
 
-	emacs-mime-ja@lists.chise.org	（日本語）
-	emacs-mime-en@lists.chise.org	（英語）
+ RFC 822, 1524, 1806, 1847, 1896, 2015, 2045, 2046, 2047, 2048 および
+ 2049 は anonymous ftp を経由して入手可能です。:
 
-  EMACS-MIME ML を通して、FLIM のバグを報告したり、FLIM の最新のリリー
-  スを取得したり、FLIM の将来の拡張の議論をしたりすることができます。
-  EMACS-MIME ML に参加したい方は、以下の頁の記述を見て購読手続きを行っ
-  てください：
+        ftp://ftp.merit.edu/internet/documents/rfc/
+
+
+メーリングリスト
+================
+
+ もし、あなたが、バグレポートおよび/または改良のための提案を書く場合には、
+ それらを Emacs-MIME メーリングリストに送ってください。
+
+        emacs-mime-en@lists.chise.org  (英語)
+        emacs-mime-ja@lists.chise.org  (日本語)
+
+ Emacs-MIME ML を通して、SEMI のバグを報告したり、SEMI の最新のリリー
+ スに関する情報を入手したり、SEMI の将来の拡張について議論することなど
+ ができます。Emacs-MIME ML に加入したい方は、以下の頁の記述を見て購読
+ 手続きを行ってください：
 
       http://lists.chise.org/mailman/listinfo/emacs-mime-ja （日本語）
       http://lists.chise.org/mailman/listinfo/emacs-mime-en （英語）
+
+
+Git に基づいた開発
+==================
+
+ SEMI の開発には Git を用いており、次のような操作により SEMI の最新の
+ ソースを取得することができます。
+
+   % git clone http://git.chise.org/git/elisp/semi.git
+
+ この SEMI のリポジトリーは WWW 経由でも閲覧することができます：
+
+    http://git.chise.org/gitweb/?p=elisp/semi.git
+
+ Git に基づいた開発に参加したいときは、まず Emacs-MIME メーリングリス
+ トにてその旨を宣言してください。
+
+ 我々は多くの方がこの開かれた開発に参加してくださることを望んでいます。
+
+
+作者
+====
+
+元の作者
+
+    MORIOKA Tomohiko <morioka@jaist.ac.jp>
+        (SEMI のいろいろな部分と mime-view の作者)
+    UMEDA Masanobu <umerin@mse.kyutech.ac.jp>
+        (emacs-mime-tools の mime.el の作者。mime.el は SEMI の
+        meme-edit.el の原型です)
+
+他の作者
+
+    Shuhei KOBAYASHI  <shuhei-k@jaist.ac.jp>
+        (たくさんのコードと signature.el の主要な作者)
+    MASUTANI Yasuhiro <masutani@me.es.osaka-u.ac.jp>
+        (mime-play.el の anonymous ftp コード)
+    OKABE Yasuo <okabe@kudpc.kyoto-u.ac.jp>
+        (mime-partial.el と signature.el の主要な作者)
+
+    Steinar Bang <sb@metis.no>
+    Steven L. Baur <steve@miranova.com>
+    Kevin Broadey <KevinB@bartley.demon.co.uk>
+    Alastair Burt <burt@dfki.uni-kl.de>
+    Eric Ding <ericding@San-Jose.ate.slb.com>
+    Thierry Emery <Thierry.Emery@aar.alcatel-alsthom.fr>
+    Simon Josefsson <jas@pdc.kth.se>
+    Jens Lautenbacher <jtl@tkm.physik.uni-karlsruhe.de>
+    Carsten Leonhardt <leo@arioch.tng.oche.de>
+    Pekka Marjola <marjola@bilbo.ntc.nokia.com>
+    Hisashi Miyashita <himi@bird.scphys.kyoto-u.ac.jp>
+    Kazuhiro Ohta <ohta@ele.cst.nihon-u.ac.jp>
+    Alexandre Oliva <oliva@dcc.unicamp.br>
+    François Pinard <pinard@iro.umontreal.ca>
+    Artur Pioro <artur@flugor.if.uj.edu.pl>
+    Dan Rich <drich@morpheus.corp.sgi.com>
+        (XEmacs と共に mime-image.el を発展させるために寄与)
+    Katsumi Yamaoka <yamaoka@jpl.org>
